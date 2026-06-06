@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FiDroplet, FiLogOut, FiPlus, FiTrendingUp } from "react-icons/fi";
+import { FiDroplet, FiLogOut, FiPlus, FiTarget, FiTrendingUp } from "react-icons/fi";
 import { IoFootstepsOutline } from "react-icons/io5";
 import { MdFitnessCenter } from "react-icons/md";
-import { fetchTodayLogs } from "@/app/log/fetchLogs";
+import { fetchTodayLogs } from "@/app/actions/fetchLogs";
+import { getGoals } from "@/app/actions/goals";
 import LogoutButton from "./sign-out-button";
 
-const GOALS = { water: 250, pushups: 50, situps: 50, steps: 10000 };
+const DEFAULT_GOALS = { water_cl: 250, pushups: 50, situps: 50, steps: 10000 };
 
 function getPercent(value, goal) {
+  if (!goal || goal <= 0) {
+    return 0;
+  }
+
   return Math.min(Math.round((value / goal) * 100), 100);
 }
 
@@ -18,8 +23,40 @@ function formatNumber(value) {
   return value.toLocaleString();
 }
 
+function LoadingDots({ label }) {
+  return (
+    <span className="flex h-10 w-20 items-center gap-1.5" aria-label={`Loading ${label}`} role="status">
+      {[0, 1, 2].map((dot) => (
+        <span
+          key={dot}
+          className="size-2 rounded-full bg-[#b7ff00]"
+          style={{
+            animation: "dotWave 900ms ease-in-out infinite",
+            animationDelay: `${dot * 140}ms`,
+          }}
+        />
+      ))}
+      <style jsx>{`
+        @keyframes dotWave {
+          0%,
+          70%,
+          100% {
+            transform: translateY(0);
+            opacity: 0.45;
+          }
+          35% {
+            transform: translateY(-8px);
+            opacity: 1;
+          }
+        }
+      `}</style>
+    </span>
+  );
+}
+
 export default function DashboardClient({ firstName }) {
   const [totals, setTotals] = useState({ water: 0, pushups: 0, situps: 0, steps: 0 });
+  const [goals, setGoals] = useState(DEFAULT_GOALS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -30,19 +67,26 @@ export default function DashboardClient({ firstName }) {
       setIsLoading(true);
       setError("");
 
-      const result = await fetchTodayLogs();
+      const [logsResult, goalsResult] = await Promise.all([fetchTodayLogs(), getGoals()]);
 
       if (!isMounted) {
         return;
       }
 
-      if (result.error) {
-        setError(result.error);
+      if (logsResult.error) {
+        setError(logsResult.error);
         setIsLoading(false);
         return;
       }
 
-      setTotals(result.totals);
+      if (goalsResult.error) {
+        setError(goalsResult.error);
+        setIsLoading(false);
+        return;
+      }
+
+      setTotals(logsResult.totals);
+      setGoals(goalsResult.data || DEFAULT_GOALS);
       setIsLoading(false);
     }
 
@@ -58,37 +102,37 @@ export default function DashboardClient({ firstName }) {
       {
         label: "Water",
         value: `${formatNumber(totals.water)}cl`,
-        goal: `${GOALS.water}cl`,
-        percent: getPercent(totals.water, GOALS.water),
+        goal: `${formatNumber(goals.water_cl)}cl`,
+        percent: getPercent(totals.water, goals.water_cl),
         icon: FiDroplet,
         accent: "text-sky-300",
       },
       {
         label: "Push-ups",
         value: formatNumber(totals.pushups),
-        goal: `${GOALS.pushups} reps`,
-        percent: getPercent(totals.pushups, GOALS.pushups),
+        goal: `${formatNumber(goals.pushups)} reps`,
+        percent: getPercent(totals.pushups, goals.pushups),
         icon: MdFitnessCenter,
         accent: "text-orange-300",
       },
       {
         label: "Sit-ups",
         value: formatNumber(totals.situps),
-        goal: `${GOALS.situps} reps`,
-        percent: getPercent(totals.situps, GOALS.situps),
+        goal: `${formatNumber(goals.situps)} reps`,
+        percent: getPercent(totals.situps, goals.situps),
         icon: FiTrendingUp,
         accent: "text-[#b7ff00]",
       },
       {
         label: "Steps",
         value: formatNumber(totals.steps),
-        goal: `${formatNumber(GOALS.steps)} steps`,
-        percent: getPercent(totals.steps, GOALS.steps),
+        goal: `${formatNumber(goals.steps)} steps`,
+        percent: getPercent(totals.steps, goals.steps),
         icon: IoFootstepsOutline,
         accent: "text-[#b7ff00]",
       },
     ],
-    [totals],
+    [totals, goals],
   );
 
   return (
@@ -101,12 +145,20 @@ export default function DashboardClient({ firstName }) {
 
           <div className="flex items-center gap-2">
             <Link
+              href="/goals"
+              className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] sm:inline-flex"
+            >
+              <FiTarget />
+              Goals
+            </Link>
+            <Link
               href="/log"
               className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] sm:inline-flex"
             >
               <FiPlus />
               Log
             </Link>
+
             <LogoutButton>
               <FiLogOut />
             </LogoutButton>
@@ -120,7 +172,7 @@ export default function DashboardClient({ firstName }) {
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#b7ff00]">Today</p>
             <h1 className="mt-2 text-4xl font-black tracking-normal sm:text-5xl">Welcome back, {firstName}.</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/38">
-              {isLoading ? "Loading today's movement..." : "Your dashboard is synced with today's saved activity logs."}
+              {isLoading ? "Loading today's movement and goals..." : "Your dashboard is synced with today's logs and your saved goals."}
             </p>
             {error ? <p className="mt-2 text-sm font-bold text-red-300">{error}</p> : null}
           </div>
@@ -147,7 +199,11 @@ export default function DashboardClient({ firstName }) {
                 </div>
                 <p className="mt-6 text-sm font-bold text-white/42">{stat.label}</p>
                 <div className="mt-2 flex items-end justify-between gap-3">
-                  <strong className="text-4xl font-black">{isLoading ? "-" : stat.value}</strong>
+                  {isLoading ? (
+                    <LoadingDots label={stat.label} />
+                  ) : (
+                    <strong className="text-4xl font-black">{stat.value}</strong>
+                  )}
                   <span className="pb-1 text-sm text-white/35">{stat.goal}</span>
                 </div>
                 <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/8">
@@ -190,13 +246,22 @@ export default function DashboardClient({ firstName }) {
         </div>
       </section>
 
-      <Link
-        href="/log"
-        className="fixed bottom-6 right-6 grid size-14 place-items-center rounded-full bg-[#b7ff00] text-xl text-black shadow-2xl shadow-[#b7ff00]/20 transition hover:scale-105 sm:hidden"
-        aria-label="Log today"
-      >
-        <FiPlus />
-      </Link>
+      <div className="fixed bottom-6 right-5 z-30 flex flex-col items-end gap-3 sm:hidden">
+        <Link
+          href="/goals"
+          className="group grid size-12 place-items-center rounded-full border border-white/12 bg-[#11130f] text-lg text-[#b7ff00] shadow-2xl shadow-black/30 transition hover:scale-105 active:scale-95"
+          aria-label="Goals"
+        >
+          <FiTarget className="transition-transform duration-200 group-hover:rotate-12 group-active:rotate-12" />
+        </Link>
+        <Link
+          href="/log"
+          className="group grid size-14 place-items-center rounded-full bg-[#b7ff00] text-xl text-black shadow-2xl shadow-[#b7ff00]/20 transition hover:scale-105 active:scale-95"
+          aria-label="Log today"
+        >
+          <FiPlus className="transition-transform duration-200 group-hover:rotate-12 group-active:rotate-12" />
+        </Link>
+      </div>
     </main>
   );
 }

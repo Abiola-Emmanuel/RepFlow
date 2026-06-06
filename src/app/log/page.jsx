@@ -111,7 +111,8 @@ export default function LogPage() {
 
   const saveLogs = async () => {
     if (!waterEntries.length && !pushupSets.length && !situpSets.length && stepsTotal === 0) {
-      alert('input first')
+      alert("input first");
+      return;
     }
 
     setSaving(true);
@@ -120,7 +121,7 @@ export default function LogPage() {
       waterEntries,
       pushupSets,
       situpSets,
-      steps: stepsTotal
+      steps: stepsTotal,
     });
 
     setSaving(false);
@@ -130,12 +131,12 @@ export default function LogPage() {
       return;
     }
 
-    setShowToast(true)
+    setShowToast(true);
     setWaterEntries([]);
     setPushupSets([]);
     setSitupSets([]);
     setSteps("");
-  }
+  };
 
   useEffect(() => {
     if (!showToast) {

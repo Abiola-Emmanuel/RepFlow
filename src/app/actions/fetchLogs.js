@@ -2,7 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-function getTodayRange() {
+function getTodayRange(range) {
+  if (range?.start && range?.end) {
+    return {
+      start: range.start,
+      end: range.end,
+    };
+  }
+
   const start = new Date();
   start.setHours(0, 0, 0, 0);
 
@@ -15,7 +22,7 @@ function getTodayRange() {
   };
 }
 
-export async function fetchTodayLogs() {
+export async function fetchTodayLogs(range) {
   const supabase = await createClient();
 
   const {
@@ -27,7 +34,7 @@ export async function fetchTodayLogs() {
     return { error: "Unauthorized" };
   }
 
-  const { start, end } = getTodayRange();
+  const { start, end } = getTodayRange(range);
 
   const { data, error } = await supabase
     .from("activity_logs")

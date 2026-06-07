@@ -23,6 +23,19 @@ function formatNumber(value) {
   return value.toLocaleString();
 }
 
+function getLocalTodayRange() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+  };
+}
+
 function LoadingDots({ label }) {
   return (
     <span className="flex h-10 w-20 items-center gap-1.5" aria-label={`Loading ${label}`} role="status">
@@ -68,7 +81,7 @@ export default function DashboardClient({ firstName }) {
       setError("");
 
       try {
-        const [logsResult, goalsResult] = await Promise.allSettled([fetchTodayLogs(), getGoals()]);
+        const [logsResult, goalsResult] = await Promise.allSettled([fetchTodayLogs(getLocalTodayRange()), getGoals()]);
 
         if (!isMounted) {
           return;
@@ -103,9 +116,11 @@ export default function DashboardClient({ firstName }) {
     }
 
     loadTodayLogs();
+    window.addEventListener("focus", loadTodayLogs);
 
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", loadTodayLogs);
     };
   }, []);
 

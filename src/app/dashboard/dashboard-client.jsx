@@ -67,27 +67,39 @@ export default function DashboardClient({ firstName }) {
       setIsLoading(true);
       setError("");
 
-      const [logsResult, goalsResult] = await Promise.all([fetchTodayLogs(), getGoals()]);
+      try {
+        const [logsResult, goalsResult] = await Promise.allSettled([fetchTodayLogs(), getGoals()]);
 
-      if (!isMounted) {
-        return;
+        if (!isMounted) {
+          return;
+        }
+
+        const errors = [];
+
+        if (logsResult.status === "fulfilled" && !logsResult.value.error) {
+          setTotals(logsResult.value.totals);
+        } else {
+          errors.push(logsResult.status === "fulfilled" ? logsResult.value.error : "Could not load today's logs.");
+        }
+
+        if (goalsResult.status === "fulfilled" && !goalsResult.value.error) {
+          setGoals(goalsResult.value.data || DEFAULT_GOALS);
+        } else {
+          setGoals(DEFAULT_GOALS);
+          errors.push(goalsResult.status === "fulfilled" ? goalsResult.value.error : "Could not load your goals.");
+        }
+
+        setError(errors.filter(Boolean).join(" "));
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load dashboard data.");
+          setGoals(DEFAULT_GOALS);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-
-      if (logsResult.error) {
-        setError(logsResult.error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (goalsResult.error) {
-        setError(goalsResult.error);
-        setIsLoading(false);
-        return;
-      }
-
-      setTotals(logsResult.totals);
-      setGoals(goalsResult.data || DEFAULT_GOALS);
-      setIsLoading(false);
     }
 
     loadTodayLogs();

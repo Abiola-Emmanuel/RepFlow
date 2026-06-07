@@ -2,6 +2,22 @@
 
 import { createClient } from "@/lib/supabase/server";
 
+const DEFAULT_GOALS = { water_cl: 250, pushups: 50, situps: 50, steps: 10000 };
+
+function toPositiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function normalizeGoals(data = {}) {
+  return {
+    water_cl: toPositiveNumber(data.water_cl, DEFAULT_GOALS.water_cl),
+    pushups: toPositiveNumber(data.pushups, DEFAULT_GOALS.pushups),
+    situps: toPositiveNumber(data.situps, DEFAULT_GOALS.situps),
+    steps: toPositiveNumber(data.steps, DEFAULT_GOALS.steps),
+  };
+}
+
 export async function getGoals() {
   const supabase = await createClient();
 
@@ -22,7 +38,7 @@ export async function getGoals() {
 
   if (error && error.code === "PGRST116") {
     return {
-      data: { water_cl: 250, pushups: 50, situps: 50, steps: 10000 },
+      data: DEFAULT_GOALS,
     };
   }
 
@@ -30,7 +46,7 @@ export async function getGoals() {
     return { error: error.message };
   }
 
-  return { data };
+  return { data: normalizeGoals(data) };
 }
 
 export async function saveGoals({ water_cl, pushups, situps, steps }) {
@@ -45,17 +61,33 @@ export async function saveGoals({ water_cl, pushups, situps, steps }) {
     return { error: "Unauthorized" };
   }
 
-  if (!water_cl || !pushups || !situps || !steps) {
+  const nextGoals = {
+    water_cl: Number(water_cl),
+    pushups: Number(pushups),
+    situps: Number(situps),
+    steps: Number(steps),
+  };
+
+  if (
+    !Number.isFinite(nextGoals.water_cl) ||
+    nextGoals.water_cl <= 0 ||
+    !Number.isFinite(nextGoals.pushups) ||
+    nextGoals.pushups <= 0 ||
+    !Number.isFinite(nextGoals.situps) ||
+    nextGoals.situps <= 0 ||
+    !Number.isFinite(nextGoals.steps) ||
+    nextGoals.steps <= 0
+  ) {
     return { error: "All goals must have a value greater than zero." };
   }
 
   const { error } = await supabase.from("goals").upsert(
     {
       user_id: user.id,
-      water_cl: Math.round(water_cl),
-      pushups: Math.round(pushups),
-      situps: Math.round(situps),
-      steps: Math.round(steps),
+      water_cl: Math.round(nextGoals.water_cl),
+      pushups: Math.round(nextGoals.pushups),
+      situps: Math.round(nextGoals.situps),
+      steps: Math.round(nextGoals.steps),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" },

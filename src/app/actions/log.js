@@ -16,8 +16,11 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
 
   const now = new Date().toISOString();
   const rows = [];
+  const safeWaterEntries = Array.isArray(waterEntries) ? waterEntries : [];
+  const safePushupSets = Array.isArray(pushupSets) ? pushupSets : [];
+  const safeSitupSets = Array.isArray(situpSets) ? situpSets : [];
 
-  waterEntries.forEach((entry) => {
+  safeWaterEntries.forEach((entry) => {
     rows.push({
       user_id: user.id,
       activity_type: "water",
@@ -27,7 +30,7 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
     });
   });
 
-  pushupSets.forEach((set) => {
+  safePushupSets.forEach((set) => {
     rows.push({
       user_id: user.id,
       activity_type: "pushup",
@@ -37,7 +40,7 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
     });
   });
 
-  situpSets.forEach((set) => {
+  safeSitupSets.forEach((set) => {
     rows.push({
       user_id: user.id,
       activity_type: "situp",

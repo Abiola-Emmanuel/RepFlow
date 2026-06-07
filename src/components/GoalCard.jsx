@@ -80,6 +80,7 @@ export function GoalCard({ field, value, onChange }) {
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onChange(Math.max(field.min, (value ?? 0) - field.step))}
+            aria-label={`Decrease ${field.label}`}
             className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-lg font-black text-white/60 transition hover:border-white/20 hover:text-white"
           >
             −
@@ -110,6 +111,7 @@ export function GoalCard({ field, value, onChange }) {
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onChange(Math.min(field.max, (value ?? 0) + field.step))}
+            aria-label={`Increase ${field.label}`}
             className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-lg font-black text-white/60 transition hover:border-white/20 hover:text-white"
           >
             +

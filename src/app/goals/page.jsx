@@ -10,7 +10,7 @@ import { getGoals, saveGoals } from "@/app/actions/goals";
 import { GoalCard } from "@/components/GoalCard";
 
 
-/* ── card config ───────────────────────────────────────────── */
+
 const goalFields = [
   {
     key: "water_cl",
@@ -93,10 +93,24 @@ export default function GoalsPage() {
   /* load existing goals on mount */
   useEffect(() => {
     async function load() {
-      const result = await getGoals();
-      if (result.data) setGoals(result.data);
-      setLoading(false);
+      try {
+        const result = await getGoals();
+
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+
+        if (result.data) {
+          setGoals(result.data);
+        }
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Could not load goals.");
+      } finally {
+        setLoading(false);
+      }
     }
+
     load();
   }, []);
 
@@ -114,13 +128,21 @@ export default function GoalsPage() {
   async function handleSave() {
     setSaving(true);
     setError(null);
-    const result = await saveGoals(goals);
-    setSaving(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+
+    try {
+      const result = await saveGoals(goals);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setShowSuccess(true);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not save goals.");
+    } finally {
+      setSaving(false);
     }
-    setShowSuccess(true);
   }
 
   return (

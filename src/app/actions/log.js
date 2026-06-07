@@ -1,37 +1,26 @@
 "use server";
 
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 
 export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }) {
-  const cookieStore = await cookies();
+  const supabase = await createClient();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-
-  // get the logged in user...
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return { error: "Unauthorized" };
+  if (authError || !user) {
+    return { error: "Unauthorized" };
+  }
 
   const now = new Date().toISOString();
-  const today = now.split("T")[0]; // YYYY-MM-DD
   const rows = [];
+  const safeWaterEntries = Array.isArray(waterEntries) ? waterEntries : [];
+  const safePushupSets = Array.isArray(pushupSets) ? pushupSets : [];
+  const safeSitupSets = Array.isArray(situpSets) ? situpSets : [];
 
-  // water entries
-  waterEntries.forEach((entry) => {
+  safeWaterEntries.forEach((entry) => {
     rows.push({
       user_id: user.id,
       activity_type: "water",
@@ -41,9 +30,7 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
     });
   });
 
-
-  // pushup sets
-  pushupSets.forEach((set) => {
+  safePushupSets.forEach((set) => {
     rows.push({
       user_id: user.id,
       activity_type: "pushup",
@@ -53,8 +40,7 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
     });
   });
 
-  // situp sets
-  situpSets.forEach((set) => {
+  safeSitupSets.forEach((set) => {
     rows.push({
       user_id: user.id,
       activity_type: "situp",
@@ -64,7 +50,6 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
     });
   });
 
-  // steps — only add if > 0
   if (steps > 0) {
     rows.push({
       user_id: user.id,
@@ -75,12 +60,15 @@ export async function saveAllLogs({ waterEntries, pushupSets, situpSets, steps }
     });
   }
 
-  if (rows.length === 0) return { error: "Nothing to log" };
-
+  if (rows.length === 0) {
+    return { error: "Nothing to log" };
+  }
 
   const { error } = await supabase.from("activity_logs").insert(rows);
-  if (error) return { error: error.message };
+
+  if (error) {
+    return { error: error.message };
+  }
 
   return { success: true };
-
 }

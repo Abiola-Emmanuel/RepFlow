@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FiDroplet, FiLogOut, FiPlus, FiTarget, FiTrendingUp } from "react-icons/fi";
+import { FiBarChart2, FiDroplet, FiLogOut, FiPlus, FiTarget, FiTrendingUp } from "react-icons/fi";
 import { IoFootstepsOutline } from "react-icons/io5";
 import { MdFitnessCenter } from "react-icons/md";
-import { fetchTodayLogs } from "@/app/actions/fetchLogs";
+import { fetchHistoryLogs, fetchTodayLogs } from "@/app/actions/fetchLogs";
 import { getGoals } from "@/app/actions/goals";
 import LogoutButton from "./sign-out-button";
 
@@ -70,6 +70,7 @@ function LoadingDots({ label }) {
 export default function DashboardClient({ firstName }) {
   const [totals, setTotals] = useState({ water: 0, pushups: 0, situps: 0, steps: 0 });
   const [goals, setGoals] = useState(DEFAULT_GOALS);
+  const [weekDays, setWeekDays] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -81,7 +82,11 @@ export default function DashboardClient({ firstName }) {
       setError("");
 
       try {
-        const [logsResult, goalsResult] = await Promise.allSettled([fetchTodayLogs(getLocalTodayRange()), getGoals()]);
+        const [logsResult, goalsResult, historyResult] = await Promise.allSettled([
+          fetchTodayLogs(getLocalTodayRange()),
+          getGoals(),
+          fetchHistoryLogs({ days: 7, forceDaily: true }),
+        ]);
 
         if (!isMounted) {
           return;
@@ -100,6 +105,13 @@ export default function DashboardClient({ firstName }) {
         } else {
           setGoals(DEFAULT_GOALS);
           errors.push(goalsResult.status === "fulfilled" ? goalsResult.value.error : "Could not load your goals.");
+        }
+
+        if (historyResult.status === "fulfilled" && !historyResult.value.error) {
+          setWeekDays(historyResult.value.days ?? []);
+        } else {
+          setWeekDays([]);
+          errors.push(historyResult.status === "fulfilled" ? historyResult.value.error : "Could not load weekly history.");
         }
 
         setError(errors.filter(Boolean).join(" "));
@@ -162,6 +174,17 @@ export default function DashboardClient({ firstName }) {
     [totals, goals],
   );
 
+  const weeklyChart = useMemo(() => {
+    const maxTotal = Math.max(...weekDays.map((day) => day.total), 1);
+
+    return weekDays.map((day) => ({
+      key: day.key,
+      label: day.weekday?.charAt(0) ?? "",
+      height: day.total > 0 ? Math.max(Math.round((day.total / maxTotal) * 100), 8) : 0,
+      total: day.total,
+    }));
+  }, [weekDays]);
+
   return (
     <main className="min-h-screen bg-[#080908] text-white">
       <header className="border-b border-white/8">
@@ -171,6 +194,13 @@ export default function DashboardClient({ firstName }) {
           </Link>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/history"
+              className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] md:inline-flex"
+            >
+              <FiBarChart2 />
+              History
+            </Link>
             <Link
               href="/goals"
               className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] sm:inline-flex"
@@ -245,15 +275,37 @@ export default function DashboardClient({ firstName }) {
           <section className="rounded-lg border border-white/8 bg-white/[0.055] p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-black">Weekly flow</h2>
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-white/28">Preview</span>
+              <Link href="/history" className="text-xs font-black uppercase tracking-[0.16em] text-[#b7ff00]">
+                View history
+              </Link>
             </div>
             <div className="mt-6 grid h-56 grid-cols-7 items-end gap-3">
-              {[18, 32, 24, 48, 36, 62, 44].map((height, index) => (
-                <div key={index} className="flex h-full flex-col justify-end gap-2">
-                  <div className="rounded-t-md bg-[#b7ff00]/80" style={{ height: `${height}%` }} />
-                  <span className="text-center text-xs text-white/30">{["M", "T", "W", "T", "F", "S", "S"][index]}</span>
-                </div>
-              ))}
+              {isLoading ? (
+                [0, 1, 2, 3, 4, 5, 6].map((index) => (
+                  <div key={index} className="flex h-full flex-col justify-end gap-2">
+                    <div className="animate-pulse rounded-t-md bg-white/10" style={{ height: "30%" }} />
+                    <span className="text-center text-xs text-white/20">—</span>
+                  </div>
+                ))
+              ) : weeklyChart.length > 0 ? (
+                weeklyChart.map((day) => (
+                  <div key={day.key} className="flex h-full flex-col justify-end gap-2">
+                    <div
+                      className="rounded-t-md bg-[#b7ff00]/80 transition-all duration-500"
+                      style={{ height: `${day.height}%` }}
+                      title={`${day.total.toLocaleString()} total logged`}
+                    />
+                    <span className="text-center text-xs text-white/30">{day.label}</span>
+                  </div>
+                ))
+              ) : (
+                [0, 1, 2, 3, 4, 5, 6].map((index) => (
+                  <div key={index} className="flex h-full flex-col justify-end gap-2">
+                    <div className="rounded-t-md bg-white/[0.06]" style={{ height: "4%" }} />
+                    <span className="text-center text-xs text-white/30">{["M", "T", "W", "T", "F", "S", "S"][index]}</span>
+                  </div>
+                ))
+              )}
             </div>
           </section>
 
@@ -274,6 +326,13 @@ export default function DashboardClient({ firstName }) {
       </section>
 
       <div className="fixed bottom-6 right-5 z-30 flex flex-col items-end gap-3 sm:hidden">
+        <Link
+          href="/history"
+          className="group grid size-12 place-items-center rounded-full border border-white/12 bg-[#11130f] text-lg text-white/70 shadow-2xl shadow-black/30 transition hover:scale-105 active:scale-95"
+          aria-label="History"
+        >
+          <FiBarChart2 className="transition-transform duration-200 group-hover:rotate-12 group-active:rotate-12" />
+        </Link>
         <Link
           href="/goals"
           className="group grid size-12 place-items-center rounded-full border border-white/12 bg-[#11130f] text-lg text-[#b7ff00] shadow-2xl shadow-black/30 transition hover:scale-105 active:scale-95"

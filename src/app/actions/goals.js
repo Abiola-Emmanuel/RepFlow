@@ -2,7 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-const DEFAULT_GOALS = { water_cl: 250, pushups: 50, situps: 50, steps: 10000 };
+const DEFAULT_GOALS = {
+  water_cl: 250,
+  pushups: 50,
+  situps: 50,
+  steps: 10000,
+  goal_type: "daily",
+};
+
+const VALID_GOAL_TYPES = ["daily", "weekly", "monthly"];
 
 function toPositiveNumber(value, fallback) {
   const number = Number(value);
@@ -15,6 +23,9 @@ function normalizeGoals(data = {}) {
     pushups: toPositiveNumber(data.pushups, DEFAULT_GOALS.pushups),
     situps: toPositiveNumber(data.situps, DEFAULT_GOALS.situps),
     steps: toPositiveNumber(data.steps, DEFAULT_GOALS.steps),
+    goal_type: VALID_GOAL_TYPES.includes(data.goal_type)
+      ? data.goal_type
+      : DEFAULT_GOALS.goal_type,
   };
 }
 
@@ -32,14 +43,12 @@ export async function getGoals() {
 
   const { data, error } = await supabase
     .from("goals")
-    .select("water_cl, pushups, situps, steps")
+    .select("water_cl, pushups, situps, steps, goal_type")
     .eq("user_id", user.id)
     .single();
 
   if (error && error.code === "PGRST116") {
-    return {
-      data: DEFAULT_GOALS,
-    };
+    return { data: DEFAULT_GOALS };
   }
 
   if (error) {
@@ -49,7 +58,7 @@ export async function getGoals() {
   return { data: normalizeGoals(data) };
 }
 
-export async function saveGoals({ water_cl, pushups, situps, steps }) {
+export async function saveGoals({ water_cl, pushups, situps, steps, goal_type }) {
   const supabase = await createClient();
 
   const {
@@ -66,19 +75,20 @@ export async function saveGoals({ water_cl, pushups, situps, steps }) {
     pushups: Number(pushups),
     situps: Number(situps),
     steps: Number(steps),
+    goal_type: goal_type ?? "daily",
   };
 
   if (
-    !Number.isFinite(nextGoals.water_cl) ||
-    nextGoals.water_cl <= 0 ||
-    !Number.isFinite(nextGoals.pushups) ||
-    nextGoals.pushups <= 0 ||
-    !Number.isFinite(nextGoals.situps) ||
-    nextGoals.situps <= 0 ||
-    !Number.isFinite(nextGoals.steps) ||
-    nextGoals.steps <= 0
+    !Number.isFinite(nextGoals.water_cl) || nextGoals.water_cl <= 0 ||
+    !Number.isFinite(nextGoals.pushups) || nextGoals.pushups <= 0 ||
+    !Number.isFinite(nextGoals.situps) || nextGoals.situps <= 0 ||
+    !Number.isFinite(nextGoals.steps) || nextGoals.steps <= 0
   ) {
     return { error: "All goals must have a value greater than zero." };
+  }
+
+  if (!VALID_GOAL_TYPES.includes(nextGoals.goal_type)) {
+    return { error: "Invalid goal type. Must be daily, weekly, or monthly." };
   }
 
   const { error } = await supabase.from("goals").upsert(
@@ -88,6 +98,7 @@ export async function saveGoals({ water_cl, pushups, situps, steps }) {
       pushups: Math.round(nextGoals.pushups),
       situps: Math.round(nextGoals.situps),
       steps: Math.round(nextGoals.steps),
+      goal_type: nextGoals.goal_type,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" },

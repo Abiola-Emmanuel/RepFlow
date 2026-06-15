@@ -13,9 +13,22 @@ import PresetButton from "@/components/log/PresetButton";
 import ProgressBar from "@/components/log/ProgressBar";
 import SummaryPill from "@/components/log/SummaryPill";
 import WaterHistory from "@/components/log/WaterHistory";
+import { fetchTodayLogs } from "@/app/actions/fetchLogs";
+import { getGoals } from "@/app/actions/goals";
 import { saveAllLogs } from "@/app/actions/log";
 
-const GOALS = { water: 250, pushups: 50, situps: 50, steps: 10000 };
+const DEFAULT_GOALS = { water_cl: 250, pushups: 50, situps: 50, steps: 10000 };
+
+function getLocalTodayRange() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 const waterPresets = [10, 15, 20, 25, 30, 35, 40, 50, 75, 100, 150];
 const stepPresets = [500, 1000, 2000, 5000];
 
@@ -50,13 +63,55 @@ export default function LogPage() {
 
   const [steps, setSteps] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [goals, setGoals] = useState(DEFAULT_GOALS);
+  const [savedTotals, setSavedTotals] = useState({ water: 0, pushups: 0, situps: 0, steps: 0 });
 
-  const waterTotal = useMemo(() => waterEntries.reduce((sum, entry) => sum + entry.amount, 0), [waterEntries]);
-  const pushupsTotal = useMemo(() => pushupSets.reduce((sum, set) => sum + set.reps, 0), [pushupSets]);
-  const situpsTotal = useMemo(() => situpSets.reduce((sum, set) => sum + set.reps, 0), [situpSets]);
-  const stepsTotal = useMemo(() => Number.parseInt(steps, 10) || 0, [steps]);
+  const sessionWater = useMemo(() => waterEntries.reduce((sum, entry) => sum + entry.amount, 0), [waterEntries]);
+  const sessionPushups = useMemo(() => pushupSets.reduce((sum, set) => sum + set.reps, 0), [pushupSets]);
+  const sessionSitups = useMemo(() => situpSets.reduce((sum, set) => sum + set.reps, 0), [situpSets]);
+
+  const stepsInput = steps === "" ? null : Number.parseInt(steps, 10);
+  const stepsTotal = stepsInput == null || Number.isNaN(stepsInput) ? savedTotals.steps : stepsInput;
+  const stepsToSave = stepsInput == null || Number.isNaN(stepsInput) ? 0 : Math.max(0, stepsInput - savedTotals.steps);
+
+  const waterTotal = savedTotals.water + sessionWater;
+  const pushupsTotal = savedTotals.pushups + sessionPushups;
+  const situpsTotal = savedTotals.situps + sessionSitups;
 
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadGoalsAndTotals() {
+      try {
+        const [goalsResult, logsResult] = await Promise.allSettled([
+          getGoals(),
+          fetchTodayLogs(getLocalTodayRange()),
+        ]);
+
+        if (!isMounted) return;
+
+        if (goalsResult.status === "fulfilled" && !goalsResult.value.error && goalsResult.value.data) {
+          setGoals(goalsResult.value.data);
+        }
+
+        if (logsResult.status === "fulfilled" && !logsResult.value.error && logsResult.value.totals) {
+          setSavedTotals(logsResult.value.totals);
+        }
+      } catch {
+        // Keep defaults on failure
+      }
+    }
+
+    loadGoalsAndTotals();
+    window.addEventListener("focus", loadGoalsAndTotals);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("focus", loadGoalsAndTotals);
+    };
+  }, []);
 
   function addWater(amount) {
     const value = amount ?? selectedWaterPreset;
@@ -110,7 +165,7 @@ export default function LogPage() {
   // function to save logs to supabase
 
   const saveLogs = async () => {
-    if (!waterEntries.length && !pushupSets.length && !situpSets.length && stepsTotal === 0) {
+    if (!waterEntries.length && !pushupSets.length && !situpSets.length && stepsToSave === 0) {
       alert("input first");
       return;
     }
@@ -121,7 +176,7 @@ export default function LogPage() {
       waterEntries,
       pushupSets,
       situpSets,
-      steps: stepsTotal,
+      steps: stepsToSave,
     });
 
     setSaving(false);
@@ -131,6 +186,12 @@ export default function LogPage() {
       return;
     }
 
+    setSavedTotals({
+      water: waterTotal,
+      pushups: pushupsTotal,
+      situps: situpsTotal,
+      steps: stepsTotal,
+    });
     setShowToast(true);
     setWaterEntries([]);
     setPushupSets([]);
@@ -256,7 +317,7 @@ export default function LogPage() {
             onDelete={(id) => setWaterEntries((entries) => entries.filter((entry) => entry.id !== id))}
           />
 
-          <ProgressBar total={waterTotal} goal={GOALS.water} unit="cl" />
+          <ProgressBar total={waterTotal} goal={goals.water_cl} unit="cl" />
         </motion.article>
 
         <ExerciseCard
@@ -266,7 +327,7 @@ export default function LogPage() {
           iconColor="#f97316"
           sets={pushupSets}
           total={pushupsTotal}
-          goal={GOALS.pushups}
+          goal={goals.pushups}
           reps={pushupReps}
           setsCount={pushupSetsCount}
           selectedPreset={selectedPushupPreset}
@@ -287,7 +348,7 @@ export default function LogPage() {
           iconColor="#4ade80"
           sets={situpSets}
           total={situpsTotal}
-          goal={GOALS.situps}
+          goal={goals.situps}
           reps={situpReps}
           setsCount={situpSetsCount}
           selectedPreset={selectedSitupPreset}
@@ -324,7 +385,7 @@ export default function LogPage() {
               </motion.button>
             ))}
           </div>
-          <ProgressBar total={stepsTotal} goal={GOALS.steps} unit="steps" />
+          <ProgressBar total={stepsTotal} goal={goals.steps} unit="steps" />
         </motion.article>
       </motion.section>
 

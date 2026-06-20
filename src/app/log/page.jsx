@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiActivity, FiArrowLeft, FiDroplet } from "react-icons/fi";
+import { FiActivity, FiDroplet } from "react-icons/fi";
 import { IoFootstepsOutline } from "react-icons/io5";
 import { MdFitnessCenter } from "react-icons/md";
+import AppNav from "@/components/AppNav";
 import CardHeader from "@/components/log/CardHeader";
 import ExerciseCard from "@/components/log/ExerciseCard";
 import NumberInput from "@/components/log/NumberInput";
@@ -210,20 +210,7 @@ export default function LogPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-black/50 backdrop-blur-2xl">
-        <nav className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 lg:px-6">
-          <Link href="/" className="text-xl font-black tracking-tighter">
-            Rep<span className="text-[#b7ff00]">Flow</span>
-          </Link>
-          <Link
-            href="/dashboard"
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-white/70 transition hover:border-[#b7ff00]/50 hover:text-[#b7ff00]"
-          >
-            <FiArrowLeft />
-            Dashboard
-          </Link>
-        </nav>
-      </header>
+      <AppNav sticky activePath="/log" />
 
       <section className="mx-auto w-full max-w-7xl px-4 pb-6 pt-8 lg:px-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

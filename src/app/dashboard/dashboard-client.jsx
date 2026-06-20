@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FiBarChart2, FiDroplet, FiLogOut, FiPlus, FiTarget, FiTrendingUp } from "react-icons/fi";
+import { FiDroplet, FiTrendingUp } from "react-icons/fi";
 import { IoFootstepsOutline } from "react-icons/io5";
 import { MdFitnessCenter } from "react-icons/md";
 import { fetchHistoryLogs, fetchTodayLogs } from "@/app/actions/fetchLogs";
 import { getGoals } from "@/app/actions/goals";
-import LogoutButton from "./sign-out-button";
+import AppNav from "@/components/AppNav";
+import CoachInsightCard from "@/components/CoachInsightCard";
 
 const DEFAULT_GOALS = { water_cl: 250, pushups: 50, situps: 50, steps: 10000 };
 
@@ -187,41 +188,7 @@ export default function DashboardClient({ firstName }) {
 
   return (
     <main className="min-h-screen bg-[#080908] text-white">
-      <header className="border-b border-white/8">
-        <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5">
-          <Link href="/dashboard" className="text-lg font-black tracking-tight">
-            <span className="text-[#b7ff00]">Rep</span>Flow
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/history"
-              className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] md:inline-flex"
-            >
-              <FiBarChart2 />
-              History
-            </Link>
-            <Link
-              href="/goals"
-              className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] sm:inline-flex"
-            >
-              <FiTarget />
-              Goals
-            </Link>
-            <Link
-              href="/log"
-              className="hidden min-h-10 items-center gap-2 rounded-md border border-white/12 px-4 text-sm font-black text-white/80 transition hover:border-[#b7ff00] hover:text-[#b7ff00] sm:inline-flex"
-            >
-              <FiPlus />
-              Log
-            </Link>
-
-            <LogoutButton>
-              <FiLogOut />
-            </LogoutButton>
-          </div>
-        </nav>
-      </header>
+      <AppNav activePath="/dashboard" showMobileNav />
 
       <section className="mx-auto w-full max-w-6xl px-5 py-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -309,45 +276,9 @@ export default function DashboardClient({ firstName }) {
             </div>
           </section>
 
-          <section className="rounded-lg border border-[#b7ff00]/20 bg-[#b7ff00]/8 p-5">
-            <h2 className="text-lg font-black">Next move</h2>
-            <p className="mt-3 text-sm leading-6 text-white/48">
-              Log another set or add your steps. The dashboard will pull your saved totals when you come back.
-            </p>
-            <Link
-              href="/log"
-              className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#b7ff00] px-4 text-sm font-black text-black"
-            >
-              <FiPlus />
-              Log today
-            </Link>
-          </section>
+          <CoachInsightCard />
         </div>
       </section>
-
-      <div className="fixed bottom-6 right-5 z-30 flex flex-col items-end gap-3 sm:hidden">
-        <Link
-          href="/history"
-          className="group grid size-12 place-items-center rounded-full border border-white/12 bg-[#11130f] text-lg text-white/70 shadow-2xl shadow-black/30 transition hover:scale-105 active:scale-95"
-          aria-label="History"
-        >
-          <FiBarChart2 className="transition-transform duration-200 group-hover:rotate-12 group-active:rotate-12" />
-        </Link>
-        <Link
-          href="/goals"
-          className="group grid size-12 place-items-center rounded-full border border-white/12 bg-[#11130f] text-lg text-[#b7ff00] shadow-2xl shadow-black/30 transition hover:scale-105 active:scale-95"
-          aria-label="Goals"
-        >
-          <FiTarget className="transition-transform duration-200 group-hover:rotate-12 group-active:rotate-12" />
-        </Link>
-        <Link
-          href="/log"
-          className="group grid size-14 place-items-center rounded-full bg-[#b7ff00] text-xl text-black shadow-2xl shadow-[#b7ff00]/20 transition hover:scale-105 active:scale-95"
-          aria-label="Log today"
-        >
-          <FiPlus className="transition-transform duration-200 group-hover:rotate-12 group-active:rotate-12" />
-        </Link>
-      </div>
     </main>
   );
 }

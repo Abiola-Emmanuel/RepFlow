@@ -13,6 +13,7 @@ export default async function CoachPage() {
   }
 
   const firstName =
+    user.user_metadata?.username ||
     user.user_metadata?.full_name?.split(" ")?.[0] ||
     user.email?.split("@")?.[0] ||
     "there";

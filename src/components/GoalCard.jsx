@@ -1,7 +1,9 @@
-"use client"
-import { motion } from 'framer-motion'
-import { useState } from 'react';
+"use client";
 
+import { motion } from "framer-motion";
+import { useState } from "react";
+import { useThemeClasses } from "@/lib/theme";
+import { formatWaterAmount, waterUnitLabel } from "@/lib/preferences";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 28 },
@@ -11,15 +13,18 @@ const cardVariants = {
 export function GoalCard({ field, value, onChange }) {
   const Icon = field.icon;
   const [focused, setFocused] = useState(false);
+  const theme = useThemeClasses();
+  const isWater = field.key === "water_cl";
+  const displayUnit = isWater ? waterUnitLabel(theme.waterUnit) : field.unit;
+  const displayValue = isWater ? formatWaterAmount(value, theme.waterUnit) : (value?.toLocaleString() ?? "—");
 
   const percent = Math.min((value / field.presets[field.presets.length - 1]) * 100, 100);
 
   return (
     <motion.article
       variants={cardVariants}
-      className="rounded-2xl border border-white/[0.07] bg-[#0f0f0f] p-5 transition-colors hover:border-white/[0.14] lg:p-6"
+      className={`${theme.cardSoft} p-5 transition-colors ${theme.cardHover} lg:p-6`}
     >
-      {/* header */}
       <div className="mb-5 flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div
@@ -29,64 +34,52 @@ export function GoalCard({ field, value, onChange }) {
             <Icon style={{ color: field.iconColor }} className="text-lg" />
           </div>
           <div>
-            <h3 className="font-black">{field.label}</h3>
-            <p className="text-xs text-white/35">{field.description}</p>
+            <h3 className="font-black">{field.label.replace(/\(cl\)|cl$/, "").replace(/\bcl\b/i, displayUnit)}</h3>
+            <p className={`text-xs ${theme.muted}`}>{field.description}</p>
           </div>
         </div>
-        {/* current value badge */}
-        <div className="flex-shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-center">
-          <span className="block text-lg font-black" style={{ color: "#b7ff00" }}>
-            {value?.toLocaleString() ?? "—"}
-          </span>
-          <span className="text-[10px] text-white/30">{field.unit}</span>
+        <div className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-center ${theme.insetStrong}`}>
+          <span className="block text-lg font-black text-[#b7ff00]">{displayValue}</span>
+          <span className={`text-[10px] ${theme.faint}`}>{displayUnit}</span>
         </div>
       </div>
 
-      {/* preset buttons */}
       <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {field.presets.map((preset) => (
-          <motion.button
-            key={preset}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => onChange(preset)}
-            className="min-h-[40px] rounded-xl border text-xs font-bold transition-all duration-200"
-            style={
-              value === preset
-                ? {
-                  backgroundColor: "#b7ff00",
-                  borderColor: "#b7ff00",
-                  color: "#000",
-                  boxShadow: "0 0 10px #b7ff0050",
-                }
-                : {
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                  borderColor: "rgba(255,255,255,0.08)",
-                  color: "rgba(255,255,255,0.6)",
-                }
-            }
-          >
-            {preset.toLocaleString()}
-          </motion.button>
-        ))}
+        {field.presets.map((preset) => {
+          const selected = value === preset;
+          const label = isWater ? formatWaterAmount(preset, theme.waterUnit) : preset.toLocaleString();
+
+          return (
+            <motion.button
+              key={preset}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => onChange(preset)}
+              className={`min-h-[40px] rounded-xl border text-xs font-bold transition-all duration-200 ${
+                selected
+                  ? "border-[#b7ff00] bg-[#b7ff00] text-black shadow-[0_0_10px_#b7ff0050]"
+                  : theme.chipIdle
+              }`}
+            >
+              {label}
+            </motion.button>
+          );
+        })}
       </div>
 
-      {/* custom number input */}
       <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-white/30">
-          Custom value
+        <label className={`mb-1.5 block text-xs font-bold uppercase tracking-widest ${theme.faint}`}>
+          Custom value {isWater ? `(stored as cl · showing ${displayUnit})` : ""}
         </label>
         <div className="flex gap-2">
-          {/* minus */}
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onChange(Math.max(field.min, (value ?? 0) - field.step))}
             aria-label={`Decrease ${field.label}`}
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-lg font-black text-white/60 transition hover:border-white/20 hover:text-white"
+            className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-lg font-black transition ${theme.inset} ${theme.mutedStrong}`}
           >
             −
           </motion.button>
 
-          {/* input */}
           <input
             type="number"
             inputMode="numeric"
@@ -100,48 +93,50 @@ export function GoalCard({ field, value, onChange }) {
               const parsed = parseInt(e.target.value, 10);
               if (!isNaN(parsed)) onChange(Math.min(field.max, Math.max(field.min, parsed)));
             }}
-            className="h-11 min-w-0 flex-1 rounded-xl border bg-[#0a0a0a] text-center text-base font-black text-white outline-none transition-all"
+            className={`h-11 min-w-0 flex-1 text-center text-base font-black outline-none transition-all ${theme.inputBox}`}
             style={{
-              borderColor: focused ? "#b7ff00" : "rgba(255,255,255,0.1)",
+              borderColor: focused ? "#b7ff00" : undefined,
               boxShadow: focused ? "0 0 0 2px #b7ff0020" : "none",
             }}
           />
 
-          {/* plus */}
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onChange(Math.min(field.max, (value ?? 0) + field.step))}
             aria-label={`Increase ${field.label}`}
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-lg font-black text-white/60 transition hover:border-white/20 hover:text-white"
+            className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-lg font-black transition ${theme.inset} ${theme.mutedStrong}`}
           >
             +
           </motion.button>
 
-          {/* unit label */}
-          <div className="flex h-11 items-center rounded-xl border border-white/8 bg-white/[0.02] px-3 text-xs font-bold text-white/30">
-            {field.unit}
+          <div className={`flex h-11 items-center rounded-xl px-3 text-xs font-bold ${theme.inset} ${theme.faint}`}>
+            {isWater ? "cl" : displayUnit}
           </div>
         </div>
       </div>
 
-      {/* progress preview bar */}
       <div>
-        <div className="mb-1 flex justify-between text-[10px] text-white/25">
-          <span>{field.min.toLocaleString()} {field.unit}</span>
-          <span>Max shown: {field.presets[field.presets.length - 1].toLocaleString()}</span>
+        <div className={`mb-1 flex justify-between text-[10px] ${theme.faint}`}>
+          <span>
+            {isWater ? formatWaterAmount(field.min, theme.waterUnit) : field.min.toLocaleString()} {displayUnit}
+          </span>
+          <span>
+            Max shown:{" "}
+            {isWater
+              ? formatWaterAmount(field.presets[field.presets.length - 1], theme.waterUnit)
+              : field.presets[field.presets.length - 1].toLocaleString()}
+          </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+        <div className={`h-1.5 w-full overflow-hidden rounded-full ${theme.track}`}>
           <motion.div
-            className="h-full rounded-full"
-            style={{ backgroundColor: "#b7ff00" }}
+            className="h-full rounded-full bg-[#b7ff00]"
             animate={{ width: `${percent}%` }}
             transition={{ type: "spring", stiffness: 120, damping: 20 }}
           />
         </div>
       </div>
 
-      {/* tip */}
-      <p className="mt-3 text-[11px] text-white/25">💡 {field.tip}</p>
+      <p className={`mt-3 text-[11px] ${theme.faint}`}>{field.tip}</p>
     </motion.article>
   );
 }

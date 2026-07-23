@@ -43,6 +43,25 @@ export async function middleware(request) {
 
   if (user && path === "/auth") {
     const url = request.nextUrl.clone();
+    url.pathname = user.user_metadata?.onboarding_complete === false ? "/onboarding" : "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    user &&
+    user.user_metadata?.onboarding_complete === false &&
+    path !== "/onboarding" &&
+    !isPublicRoute
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/onboarding";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (user && user.user_metadata?.onboarding_complete === true && path === "/onboarding") {
+    const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);

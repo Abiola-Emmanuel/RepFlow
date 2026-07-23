@@ -161,9 +161,8 @@ export default function Home() {
           >
             <span className="block">Track your reps.</span>
             <span className="bg-gradient-to-r from-[#b7ff00] via-[#d4ff4d] to-[#b7ff00] bg-clip-text text-transparent">
-              Flow
-            </span>{" "}
-            your life.
+              Build the streak.
+            </span>
           </motion.h1>
 
           <motion.p

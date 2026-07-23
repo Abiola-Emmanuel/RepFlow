@@ -16,6 +16,7 @@ import WaterHistory from "@/components/log/WaterHistory";
 import { fetchTodayLogs } from "@/app/actions/fetchLogs";
 import { getGoals } from "@/app/actions/goals";
 import { saveAllLogs } from "@/app/actions/log";
+import { useThemeClasses } from "@/lib/theme";
 
 const DEFAULT_GOALS = { water_cl: 250, pushups: 50, situps: 50, steps: 10000 };
 
@@ -45,6 +46,7 @@ const itemVariants = {
 };
 
 export default function LogPage() {
+  const theme = useThemeClasses();
   const [waterEntries, setWaterEntries] = useState([]);
   const [selectedWaterPreset, setSelectedWaterPreset] = useState(null);
   const [customWaterAmount, setCustomWaterAmount] = useState("");
@@ -209,14 +211,14 @@ export default function LogPage() {
   }, [showToast]);
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
+    <main className={theme.pageAlt}>
       <AppNav sticky activePath="/log" />
 
       <section className="mx-auto w-full max-w-7xl px-4 pb-6 pt-8 lg:px-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-5xl font-black tracking-tighter lg:text-6xl">Log activity</h1>
-            <p className="mt-2 text-sm font-bold text-white/40">
+            <p className={`mt-2 text-sm font-bold ${theme.muted}`}>
               {new Date().toLocaleDateString("en", { weekday: "long", month: "short", day: "numeric" })}
             </p>
           </div>

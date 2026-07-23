@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
+import SegmentedControl from "@/components/SegmentedControl";
 import { createClient } from "@/lib/supabase/client";
+
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
 
 export default function AuthForm() {
   const router = useRouter();
@@ -16,6 +19,7 @@ export default function AuthForm() {
   const supabase = useMemo(() => (hasSupabaseConfig ? createClient() : null), [hasSupabaseConfig]);
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +33,14 @@ export default function AuthForm() {
       return;
     }
 
+    if (mode === "signup") {
+      const trimmedUsername = username.trim();
+      if (!USERNAME_PATTERN.test(trimmedUsername)) {
+        setStatus("Username must be 3–20 characters (letters, numbers, underscores).");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     const auth =
@@ -38,11 +50,16 @@ export default function AuthForm() {
             email,
             password,
             options: {
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
+              emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding")}`,
+              data: {
+                username: username.trim(),
+                full_name: username.trim(),
+                onboarding_complete: false,
+              },
             },
           });
 
-    const { error } = await auth;
+    const { data, error } = await auth;
     setIsLoading(false);
 
     if (error) {
@@ -50,7 +67,18 @@ export default function AuthForm() {
       return;
     }
 
-    router.replace(next);
+    if (mode === "signup") {
+      if (data?.session) {
+        router.replace("/onboarding");
+      } else {
+        setStatus("Check your email to confirm your account, then log in.");
+        return;
+      }
+    } else {
+      const onboardingDone = data?.user?.user_metadata?.onboarding_complete !== false;
+      router.replace(onboardingDone ? next : "/onboarding");
+    }
+
     router.refresh();
   }
 
@@ -64,10 +92,12 @@ export default function AuthForm() {
 
     setIsLoading(true);
 
+    const oauthNext = mode === "signup" ? "/onboarding" : next;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(oauthNext)}`,
       },
     });
 
@@ -85,28 +115,34 @@ export default function AuthForm() {
         </Link>
 
         <div className="rounded-3xl border border-white/12 bg-white/[0.065] p-7 shadow-2xl shadow-black/30">
-          <div className="grid grid-cols-2 rounded-xl bg-black/35 p-1">
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className={`min-h-10 rounded-lg text-sm font-bold transition ${
-                mode === "login" ? "bg-[#b7ff00] text-black" : "text-white/40 hover:text-white"
-              }`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("signup")}
-              className={`min-h-10 rounded-lg text-sm font-bold transition ${
-                mode === "signup" ? "bg-[#b7ff00] text-black" : "text-white/40 hover:text-white"
-              }`}
-            >
-              Sign up
-            </button>
-          </div>
+          <SegmentedControl
+            value={mode}
+            onChange={setMode}
+            layoutId="auth-mode-pill"
+            options={[
+              { value: "login", label: "Login" },
+              { value: "signup", label: "Sign up" },
+            ]}
+          />
 
           <form onSubmit={handleEmailAuth} className="mt-6 space-y-5">
+            {mode === "signup" ? (
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/35">Username</span>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="repflow_athlete"
+                  minLength={3}
+                  maxLength={20}
+                  pattern="[a-zA-Z0-9_]{3,20}"
+                  required
+                  className="mt-2 min-h-12 w-full rounded-md border border-white/18 bg-white/12 px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#b7ff00]"
+                />
+              </label>
+            ) : null}
+
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/35">Email</span>
               <input

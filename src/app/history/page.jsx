@@ -16,6 +16,7 @@ import { IoFootstepsOutline } from "react-icons/io5";
 import { MdFitnessCenter } from "react-icons/md";
 import AppNav from "@/components/AppNav";
 import { fetchHistoryLogs } from "@/app/actions/fetchLogs";
+import { useThemeClasses } from "@/lib/theme";
 
 const ranges = [
   { label: "Week", days: 7 },
@@ -110,6 +111,7 @@ function SummaryCard({ icon, label, value, accent, loading }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function HistoryPage() {
+  const theme = useThemeClasses();
   const [range, setRange] = useState(7);
   const [days, setDays] = useState([]);
   const [streaks, setStreaks] = useState({ water: 0, pushups: 0, situps: 0, steps: 0 });
@@ -179,7 +181,7 @@ export default function HistoryPage() {
       : "Daily breakdown";
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
+    <main className={theme.pageAlt}>
       <AppNav sticky activePath="/history" />
 
       <section className="mx-auto w-full max-w-7xl px-4 pb-28 pt-8 lg:px-6">
@@ -190,16 +192,16 @@ export default function HistoryPage() {
             <div className="flex items-center gap-2">
               <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#b7ff00]">History</p>
               {!isLoading && (
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white/35">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${theme.isLight ? "border-black/10 bg-black/[0.04] text-black/40" : "border-white/10 bg-white/[0.04] text-white/35"}`}>
                   {goalType}
                 </span>
               )}
             </div>
             <h1 className="mt-2 text-5xl font-black tracking-tighter lg:text-6xl">Your flow over time</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/40">
+            <p className={`mt-3 max-w-2xl text-sm leading-6 ${theme.muted}`}>
               Review water, reps, and steps across the {range === 7 ? "week" : "month"}.
               {!isLoading && goalType !== "daily" && (
-                <span className="ml-1 text-white/30">
+                <span className={`ml-1 ${theme.isLight ? "text-black/30" : "text-white/30"}`}>
                   Goals tracked {goalType === "weekly" ? "per week" : "per month"}.
                 </span>
               )}

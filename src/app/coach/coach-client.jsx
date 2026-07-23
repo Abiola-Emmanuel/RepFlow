@@ -3,8 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
-import { FiSend, FiChevronDown } from "react-icons/fi";
+import { FiCheck, FiSend, FiChevronDown, FiX } from "react-icons/fi";
 import AppNav from "@/components/AppNav";
+import { applyGoalSuggestion, getCoachSoftSuggestions } from "@/app/actions/suggestions";
+import { useThemeClasses } from "@/lib/theme";
 
 const SUGGESTED_PROMPTS = [
   "How am I doing today?",
@@ -12,11 +14,23 @@ const SUGGESTED_PROMPTS = [
   "Why is my water streak low?",
 ];
 
+const SUGGEST_RE = /:::suggest\s+goal\s+(water_cl|pushups|situps|steps)\s+(\d+):::/i;
+
 function getMessageText(message) {
   return message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("");
+}
+
+function stripSuggestionMarkers(text) {
+  return text.replace(SUGGEST_RE, "").trim();
+}
+
+function parseSuggestion(text) {
+  const match = text.match(SUGGEST_RE);
+  if (!match) return null;
+  return { key: match[1], proposed: Number(match[2]) };
 }
 
 function LoadingDots() {
@@ -51,8 +65,12 @@ function LoadingDots() {
 }
 
 export default function CoachClient({ firstName }) {
+  const theme = useThemeClasses();
   const [input, setInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [softSuggestions, setSoftSuggestions] = useState([]);
+  const [applyingId, setApplyingId] = useState("");
+  const [applyStatus, setApplyStatus] = useState("");
   const chatContainerRef = useRef(null);
 
   const transport = useMemo(
@@ -64,6 +82,23 @@ export default function CoachClient({ firstName }) {
 
   const isLoading = status === "submitted" || status === "streaming";
   const showWelcome = messages.length === 0 && !isLoading;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSuggestions() {
+      const result = await getCoachSoftSuggestions();
+      if (!mounted) return;
+      if (result.success) {
+        setSoftSuggestions(result.suggestions ?? []);
+      }
+    }
+
+    loadSuggestions();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     if (chatContainerRef.current) {
@@ -115,8 +150,46 @@ export default function CoachClient({ firstName }) {
     sendMessage({ text: prompt });
   }
 
+  async function handleApplySuggestion(suggestion) {
+    if (suggestion.type === "focus") {
+      handleSuggestedPrompt(`Help me catch up on ${suggestion.label} today.`);
+      setSoftSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id));
+      return;
+    }
+
+    setApplyingId(suggestion.id);
+    setApplyStatus("");
+    const result = await applyGoalSuggestion({
+      key: suggestion.key,
+      proposed: suggestion.proposed,
+    });
+    setApplyingId("");
+
+    if (result.error) {
+      setApplyStatus(result.error);
+      return;
+    }
+
+    setApplyStatus(`Updated ${suggestion.label} goal to ${suggestion.proposed} ${suggestion.unit}.`);
+    setSoftSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id));
+  }
+
+  async function handleInlineSuggestion(parsed, messageId) {
+    setApplyingId(messageId);
+    setApplyStatus("");
+    const result = await applyGoalSuggestion(parsed);
+    setApplyingId("");
+
+    if (result.error) {
+      setApplyStatus(result.error);
+      return;
+    }
+
+    setApplyStatus(`Goal updated to ${parsed.proposed}.`);
+  }
+
   return (
-    <main className="flex min-h-screen flex-col bg-[#080908] text-white">
+    <main className={`flex flex-col ${theme.page}`}>
       <AppNav activePath="/coach" />
 
       <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 py-8">
@@ -125,12 +198,51 @@ export default function CoachClient({ firstName }) {
           <h1 className="mt-2 text-4xl font-black tracking-normal sm:text-5xl">
             Hey {firstName}.
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-white/38">
+          <p className={`mt-3 max-w-xl text-sm leading-6 ${theme.muted}`}>
             Ask about your goals, today&apos;s logs, or streaks. Replies use your real RepFlow data.
           </p>
         </div>
 
-        <div className="relative mt-8 flex flex-1 flex-col overflow-hidden rounded-lg border border-white/8 bg-white/[0.055]">
+        {softSuggestions.length > 0 ? (
+          <div className="mt-6 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Suggested actions</p>
+            {softSuggestions.map((suggestion) => (
+              <div
+                key={suggestion.id}
+                className="flex flex-col gap-3 rounded-lg border border-[#b7ff00]/25 bg-[#b7ff00]/8 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <p className="text-sm leading-6 text-white/70">
+                  {suggestion.type === "goal_bump"
+                    ? `${suggestion.reason} (${suggestion.current} → ${suggestion.proposed} ${suggestion.unit})`
+                    : suggestion.message}
+                </p>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleApplySuggestion(suggestion)}
+                    disabled={applyingId === suggestion.id}
+                    className="inline-flex min-h-9 items-center gap-1 rounded-md bg-[#b7ff00] px-3 text-xs font-black text-black disabled:opacity-55"
+                  >
+                    <FiCheck />
+                    {suggestion.type === "goal_bump" ? "Apply" : "Ask coach"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSoftSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))}
+                    className="grid size-9 place-items-center rounded-md border border-white/12 text-white/40"
+                    aria-label="Dismiss suggestion"
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {applyStatus ? <p className="mt-3 text-sm font-bold text-[#b7ff00]">{applyStatus}</p> : null}
+
+        <div className={`relative mt-8 flex flex-1 flex-col overflow-hidden ${theme.card}`}>
           <div
             ref={chatContainerRef}
             className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-5"
@@ -160,10 +272,12 @@ export default function CoachClient({ firstName }) {
             ) : null}
 
             {messages.map((message) => {
-              const text = getMessageText(message);
-              if (!text) return null;
+              const rawText = getMessageText(message);
+              if (!rawText) return null;
 
               const isUser = message.role === "user";
+              const text = isUser ? rawText : stripSuggestionMarkers(rawText);
+              const inlineSuggestion = !isUser ? parseSuggestion(rawText) : null;
 
               return (
                 <div
@@ -183,6 +297,17 @@ export default function CoachClient({ firstName }) {
                     >
                       {text}
                     </div>
+                    {inlineSuggestion ? (
+                      <button
+                        type="button"
+                        disabled={applyingId === message.id}
+                        onClick={() => handleInlineSuggestion(inlineSuggestion, message.id)}
+                        className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-md border border-[#b7ff00]/40 bg-[#b7ff00]/10 px-3 text-xs font-black text-[#b7ff00] disabled:opacity-55"
+                      >
+                        <FiCheck />
+                        Apply {inlineSuggestion.key} → {inlineSuggestion.proposed}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               );

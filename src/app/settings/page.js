@@ -15,6 +15,7 @@ export default async function SettingsPage() {
   const profile = {
     email: user.email,
     name: user.user_metadata?.full_name || user.email?.split("@")?.[0] || "RepFlow user",
+    username: user.user_metadata?.username || "",
     provider: user.app_metadata?.provider || "email",
     createdAt: user.created_at,
   };

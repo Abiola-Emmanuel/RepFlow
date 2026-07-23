@@ -6,8 +6,10 @@ import { FiActivity, FiCheck, FiDroplet, FiTarget } from "react-icons/fi";
 import { IoFootstepsOutline } from "react-icons/io5";
 import { MdFitnessCenter } from "react-icons/md";
 import AppNav from "@/components/AppNav";
+import SegmentedControl from "@/components/SegmentedControl";
 import { getGoals, saveGoals } from "@/app/actions/goals";
 import { GoalCard } from "@/components/GoalCard";
+import { useThemeClasses } from "@/lib/theme";
 
 const GOAL_TYPES = [
   { value: "daily", label: "Daily" },
@@ -108,6 +110,7 @@ const containerVariants = {
 };
 
 export default function GoalsPage() {
+  const theme = useThemeClasses();
   const [goals, setGoals] = useState({
     water_cl: 250,
     pushups: 50,
@@ -183,14 +186,14 @@ export default function GoalsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
+    <main className={theme.pageAlt}>
       {/* grain */}
       <div className="pointer-events-none fixed inset-0 z-[100] opacity-[0.025]">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9Ii45IiBudW1PY3RhdmVzPSI0IiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI25vaXNlKSIgb3BhY2l0eT0iMSIvPjwvc3ZnPg==')] bg-repeat mix-blend-overlay" />
       </div>
 
       {/* ambient orb */}
-      <div className="pointer-events-none fixed left-0 top-0 z-0 h-[400px] w-[400px] rounded-full bg-[#b7ff00]/8 blur-[120px]" />
+      <div className={theme.orb} />
 
       {/* navbar */}
       <AppNav sticky activePath="/goals" />
@@ -207,7 +210,7 @@ export default function GoalsPage() {
               </div>
               <div>
                 <h1 className="text-4xl font-black tracking-tighter lg:text-6xl">Set your goals</h1>
-                <p className="mt-1 text-sm leading-6 text-white/40">
+                <p className={`mt-1 text-sm leading-6 ${theme.muted}`}>
                   Define your targets. Your dashboard will track progress against these numbers.
                 </p>
               </div>
@@ -216,20 +219,14 @@ export default function GoalsPage() {
             {/* goal type selector */}
             <div className="flex shrink-0 flex-col gap-1.5">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Goal period</p>
-              <div className="grid grid-cols-3 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-                {GOAL_TYPES.map((type) => (
-                  <button
-                    key={type.value}
-                    onClick={() => handleGoalTypeChange(type.value)}
-                    className={`min-h-9 rounded-lg px-4 text-sm font-black transition ${goals.goal_type === type.value
-                        ? "bg-[#b7ff00] text-black"
-                        : "text-white/40 hover:text-white/70"
-                      }`}
-                  >
-                    {type.label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                value={goals.goal_type}
+                onChange={handleGoalTypeChange}
+                layoutId="goal-period-pill"
+                size="sm"
+                className="border border-white/10 bg-white/[0.03]"
+                options={GOAL_TYPES}
+              />
               <p className="text-[10px] text-white/25">
                 {goals.goal_type === "daily" && "Progress resets every day."}
                 {goals.goal_type === "weekly" && "Progress tracked across the full week."}

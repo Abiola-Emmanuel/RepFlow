@@ -5,6 +5,11 @@
   --foreground: #f7f7f4;
 }
 
+html.theme-light {
+  --background: #f4f4f0;
+  --foreground: #121410;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -35,3 +40,4 @@ input {
 button {
   cursor: pointer;
 }
+
